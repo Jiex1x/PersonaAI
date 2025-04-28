@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, status
 from typing import Optional
 import logging
+from datetime import datetime, timedelta
 from ..models.input_models import PersonalBrandInput
 from ..models.output_models import PersonalBrandStrategy
+from ..models.user_models import UserCreate, UserLogin, Token, UserInDB
+from ..models.response_models import APIResponse
 from ..agents import (
     BrandIdentityAgent,
     UniqueStrengthsAgent,
@@ -11,17 +14,64 @@ from ..agents import (
     LaunchPlanningAgent,
     AgentOrchestrator
 )
-from ..services.storage import save_strategy_report
+from ..services.storage import save_strategy_report, get_strategy_report
+from ..services.auth import (
+    get_current_user,
+    create_access_token,
+    verify_password,
+    get_password_hash,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.post("/generate-strategy", response_model=PersonalBrandStrategy)
+@router.post("/token", response_model=APIResponse[Token])
+async def login_for_access_token(form_data: UserLogin):
+    """
+    OAuth2 compatible token login, get an access token for future requests.
+    """
+    try:
+        # TODO: Get user from database
+        # For now, use a mock user
+        user = UserInDB(
+            id="test-user-id",
+            email=form_data.email,
+            full_name="Test User",
+            hashed_password=get_password_hash("test-password"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        if not verify_password(form_data.password, user.hashed_password):
+            return APIResponse(
+                success=False,
+                error="Incorrect email or password"
+            )
+        
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=access_token_expires
+        )
+        return APIResponse(
+            success=True,
+            data={"access_token": access_token, "token_type": "bearer"}
+        )
+    except Exception as e:
+        logger.error(f"Login failed: {str(e)}", exc_info=True)
+        return APIResponse(
+            success=False,
+            error=f"Login failed: {str(e)}"
+        )
+
+@router.post("/generate-strategy", response_model=APIResponse[PersonalBrandStrategy])
 async def generate_personal_brand_strategy(
     input_data: PersonalBrandInput,
-    background_tasks: BackgroundTasks
-) -> PersonalBrandStrategy:
+    background_tasks: BackgroundTasks,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """
     Generate a comprehensive personal brand strategy based on user input.
     
@@ -67,35 +117,42 @@ async def generate_personal_brand_strategy(
         # Schedule background task to save the report
         background_tasks.add_task(
             save_strategy_report,
-            strategy=strategy_response
+            strategy=strategy_response,
+            user=current_user
         )
         
         logger.info("Strategy report scheduled for storage")
         
-        return strategy_response
+        return APIResponse(
+            success=True,
+            data=strategy_response
+        )
         
     except Exception as e:
         logger.error(f"Failed to generate personal brand strategy: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate personal brand strategy: {str(e)}"
+        return APIResponse(
+            success=False,
+            error=f"Failed to generate personal brand strategy: {str(e)}"
         )
 
-@router.get("/strategy/{strategy_id}")
-async def get_strategy(strategy_id: str) -> PersonalBrandStrategy:
+@router.get("/strategy/{strategy_id}", response_model=APIResponse[PersonalBrandStrategy])
+async def get_strategy(
+    strategy_id: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """
     Retrieve a previously generated personal brand strategy by ID.
     """
     try:
         logger.info(f"Attempting to retrieve strategy with ID: {strategy_id}")
-        # TODO: Implement strategy retrieval from Azure Blob Storage
-        raise HTTPException(
-            status_code=501,
-            detail="Strategy retrieval not implemented yet"
+        strategy = await get_strategy_report(strategy_id, current_user)
+        return APIResponse(
+            success=True,
+            data=strategy
         )
     except Exception as e:
         logger.error(f"Failed to retrieve strategy: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve strategy: {str(e)}"
+        return APIResponse(
+            success=False,
+            error=f"Failed to retrieve strategy: {str(e)}"
         ) 

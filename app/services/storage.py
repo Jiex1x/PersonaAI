@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from azure.storage.blob import BlobServiceClient
 from ..models.output_models import PersonalBrandStrategy
+from ..models.user_models import UserInDB
 
 class StorageService:
     """Service for managing strategy report storage in Azure Blob Storage."""
@@ -18,12 +19,13 @@ class StorageService:
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_client = self.blob_service_client.get_container_client(container_name)
     
-    async def save_strategy(self, strategy: PersonalBrandStrategy) -> str:
+    async def save_strategy(self, strategy: PersonalBrandStrategy, user: UserInDB) -> str:
         """
         Save a strategy report to Azure Blob Storage.
         
         Args:
             strategy: The strategy report to save
+            user: The user who owns the strategy
             
         Returns:
             str: The unique ID of the saved strategy
@@ -33,8 +35,8 @@ class StorageService:
             strategy_id = str(uuid.uuid4())
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             
-            # Create blob name with timestamp
-            blob_name = f"strategies/{strategy_id}/{timestamp}_strategy.json"
+            # Create blob name with user ID and timestamp
+            blob_name = f"users/{user.id}/strategies/{strategy_id}/{timestamp}_strategy.json"
             
             # Convert strategy to JSON using Pydantic v2 syntax
             strategy_dict = strategy.model_dump()  # New Pydantic v2 method
@@ -49,19 +51,20 @@ class StorageService:
         except Exception as e:
             raise Exception(f"Failed to save strategy to storage: {str(e)}")
     
-    async def get_strategy(self, strategy_id: str) -> PersonalBrandStrategy:
+    async def get_strategy(self, strategy_id: str, user: UserInDB) -> PersonalBrandStrategy:
         """
         Retrieve a strategy report from Azure Blob Storage.
         
         Args:
             strategy_id: The unique ID of the strategy to retrieve
+            user: The user who owns the strategy
             
         Returns:
             PersonalBrandStrategy: The retrieved strategy report
         """
         try:
-            # List all blobs in the strategy directory
-            prefix = f"strategies/{strategy_id}/"
+            # List all blobs in the user's strategy directory
+            prefix = f"users/{user.id}/strategies/{strategy_id}/"
             blobs = list(self.container_client.list_blobs(name_starts_with=prefix))
             
             if not blobs:
@@ -84,10 +87,10 @@ class StorageService:
 # Create singleton instance
 storage_service = StorageService()
 
-async def save_strategy_report(strategy: PersonalBrandStrategy) -> str:
+async def save_strategy_report(strategy: PersonalBrandStrategy, user: UserInDB) -> str:
     """Helper function to save strategy report."""
-    return await storage_service.save_strategy(strategy)
+    return await storage_service.save_strategy(strategy, user)
 
-async def get_strategy_report(strategy_id: str) -> PersonalBrandStrategy:
+async def get_strategy_report(strategy_id: str, user: UserInDB) -> PersonalBrandStrategy:
     """Helper function to retrieve strategy report."""
-    return await storage_service.get_strategy(strategy_id) 
+    return await storage_service.get_strategy(strategy_id, user) 

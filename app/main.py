@@ -1,9 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from .api.routes import router as api_router
+from .core.exception_handlers import validation_exception_handler, general_exception_handler
+from .models.response_models import APIResponse
 import os
 import logging
 import sys
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(
@@ -16,6 +21,32 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+class ResponseWrapperMiddleware(BaseHTTPMiddleware):
+    """Middleware to wrap all successful responses in our standard format."""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # If the response is already a JSONResponse, don't wrap it again
+        if isinstance(response, JSONResponse):
+            return response
+            
+        # Get the response body
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk
+        
+        # Wrap the response in our standard format
+        wrapped_response = APIResponse(
+            success=True,
+            data=body.decode() if body else None
+        )
+        
+        return JSONResponse(
+            status_code=response.status_code,
+            content=wrapped_response.model_dump()
+        )
 
 app = FastAPI(
     title="PersonalBrand.AI API",
@@ -31,6 +62,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add response wrapper middleware
+app.add_middleware(ResponseWrapperMiddleware)
+
+# Add exception handlers
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Include API routes
 app.include_router(
