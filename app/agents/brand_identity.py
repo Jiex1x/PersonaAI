@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 from .base import BaseAgent
-import openai
+from openai import AsyncOpenAI
 import os
 
 class BrandIdentityAgent(BaseAgent):
@@ -11,6 +11,7 @@ class BrandIdentityAgent(BaseAgent):
             name="BrandIdentityAgent",
             description="Helps define user's professional brand identity and positioning"
         )
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4")
     
     def validate_input(self, input_data: Dict[str, Any]) -> bool:
@@ -43,17 +44,17 @@ class BrandIdentityAgent(BaseAgent):
         Format the response as a JSON object with keys: brand_title, brand_slogan, core_values (array)
         """
         
-        # Call OpenAI API
-        response = await openai.ChatCompletion.acreate(
-            model=self.model_name,
-            messages=[
-                {"role": "system", "content": "You are a personal branding expert."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        
-        # Extract and structure the response
         try:
+            # Call OpenAI API using the new syntax
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": "You are a personal branding expert."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            # Extract and structure the response
             result = response.choices[0].message.content
             # Note: In production, add proper JSON parsing and error handling
             

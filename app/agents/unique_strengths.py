@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 from .base import BaseAgent
-import openai
+from openai import AsyncOpenAI
 import os
 
 class UniqueStrengthsAgent(BaseAgent):
@@ -11,6 +11,7 @@ class UniqueStrengthsAgent(BaseAgent):
             name="UniqueStrengthsAgent",
             description="Identifies and articulates user's unique professional strengths and story"
         )
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4")
     
     def validate_input(self, input_data: Dict[str, Any]) -> bool:
@@ -46,7 +47,7 @@ class UniqueStrengthsAgent(BaseAgent):
         """
         
         try:
-            response = await openai.ChatCompletion.acreate(
+            response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {
