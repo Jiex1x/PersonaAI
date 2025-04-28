@@ -20,17 +20,25 @@ PersonalBrand.AI is a multi-agent collaboration platform for personal brand incu
 
 ## Setup
 
-1. Clone the repository
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Jiex1x/PersonaAI.git
+   cd PersonaAI
+   ```
+
 2. Create a virtual environment:
    ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
+
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
+
 4. Copy `.env.example` to `.env` and fill in your credentials
+
 5. Run the development server:
    ```bash
    uvicorn app.main:app --reload
@@ -41,6 +49,7 @@ PersonalBrand.AI is a multi-agent collaboration platform for personal brand incu
 The following environment variables are required:
 
 - `OPENAI_API_KEY`: Your OpenAI API key
+- `OPENAI_MODEL_NAME`: OpenAI Model Name (e.g., gpt-4)
 - `AZURE_SEARCH_SERVICE_ENDPOINT`: Your Azure Cognitive Search service endpoint
 - `AZURE_SEARCH_ADMIN_KEY`: Your Azure Cognitive Search admin key
 - `AZURE_SEARCH_INDEX_NAME`: The name of your search index

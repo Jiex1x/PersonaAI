@@ -96,7 +96,8 @@ async def test_services() -> Dict[str, Any]:
 async def test_openai_completion(request: CompletionRequest) -> Dict[str, Any]:
     """Test OpenAI completion generation"""
     result = await openai_service.generate_completion(
-        prompt=request.prompt
+        prompt=request.prompt,
+        model=request.model
     )
     if result["status"] == "error":
         raise HTTPException(
@@ -158,4 +159,4 @@ async def test_search(request: SearchRequest) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8088) 
+    uvicorn.run(app, host="0.0.0.0", port=8088)
