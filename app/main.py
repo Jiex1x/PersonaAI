@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from typing import Dict, Optional, List, Any
 from pydantic import BaseModel
-from services.azure_openai import OpenAIService
+from services.openai_service import OpenAIService
 from services.azure_search import AzureSearchService
 
 # Load environment variables
@@ -13,7 +13,7 @@ load_dotenv()
 # Validate required environment variables
 required_env_vars = {
     "OPENAI_API_KEY": "OpenAI API Key",
-    "OPENAI_MODEL_NAME": "OpenAI Model Name",
+    "OPENAI_MODEL_NAME": "OpenAI Model Name (e.g., gpt-4)",
     "AZURE_SEARCH_SERVICE_ENDPOINT": "Azure Search Service Endpoint",
     "AZURE_SEARCH_ADMIN_KEY": "Azure Search Admin Key",
     "AZURE_SEARCH_INDEX_NAME": "Azure Search Index Name"
